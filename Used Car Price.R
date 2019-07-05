@@ -212,7 +212,7 @@ model.used = rpart(formula = Price ~ ., data = train_used, method = 'anova',
 
 printcp(model.used)
 
-model.used.prun = prune(model.used, cp = 0.000123, 'cp')
+model.used.prun = prune(model.used, cp = 0.000149, 'cp')
 fancyRpartPlot(model.used.prun)
 
 par(mfrow = c(1,2))
@@ -241,11 +241,13 @@ test$Price = predict(model.used.prun, test, method = 'anova', interval = 'confid
 
 used_care_1 = test$Price
 
-
+write.csv(used_care_1, 'Final_Hackthon.xlsx')
 
 ~~~~~~~~~~~~~~~~~~~~~~
   
 library(imputeTS)
+
+test_new_price = test
 
 test_new_price$New_Price = na.replace(test_new_price$New_Price,0)
 
@@ -257,10 +259,22 @@ colSums(is.na(test_new_price))
 
 ## PREDICT NEW PRICE ##
 
-test_new_price$New_Price = predict(test_new_price, test_new_price, 
+test_new_price$New_Price = predict(prun_new_price, test_new_price, 
                                      method = 'anova',  interval = 'confident')
 
 ## Final Dataset 
 
-train_final = rbind(train_new, Predict_New_Test)
+test1 = na.omit(test)
+
+test_new = rbind(test1, test_new_price)
+
+## Predict 2
+
+test_new$Price = predict(model.used.prun, test_new, method = 'anova', interval = 'confidence')
+
+used_care_2 = test_new$Price
+
+write.csv(used_care_2, 'Final_Submission_2.xlsx')
+
+
 
