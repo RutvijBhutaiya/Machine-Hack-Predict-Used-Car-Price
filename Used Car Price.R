@@ -1,6 +1,7 @@
 ## Used Car_Price Predicition ##
 
 train = read.csv('Data_Train.csv')
+train = train[, -1]
 
 attach(train)
 
@@ -14,7 +15,16 @@ colSums(is.na(train))   ## Check for NAs
 #library(rpivotTable)
 #rpivotTable(train)
 
-train = train[-4000,]   #3 Remove Zero Seat obersavation - Makes No sence
+## Outliers Study
+
+boxplot(Kilometers_Driven)
+boxplot(Power)
+boxplot(Mileage)
+boxplot(Engine)
+
+## Remove Zero Seat & extream outlier from Kilometers_Driven
+
+train = train[-c(4000,2329), ] 
 
 attach(train)
 
@@ -49,33 +59,26 @@ library(forecast)
 hist(Power)  ## Power
 
 BoxCox.lambda(Power)
-Power = 1/ Power
+Power = (1/Power)
 Power = sqrt(Power)
 
 
 hist(Engine)  ## Engine
 
 BoxCox.lambda(Engine)
-Engine = 1 / Engine
+Engine = (1/Engine)
 Engine = sqrt(Engine)
 
 hist(Kilometers_Driven)  # Kilometer_Driven
 
 BoxCox.lambda(Kilometers_Driven)
 Kilometers_Driven = log(Kilometers_Driven)
-Kilometers_Driven = Kilometers_Driven^2
+Kilometers_Driven = (Kilometers_Driven^2)
 
 attach(train_new)
 
-library(ggplot2)
-library(ggcorrplot)
-
-corp = train_new[, -c(1,2,3,5,6,7)]
-
-ggcorrplot(cor(corp), method = 'circle', type = 'lower')
-
-## Due to High Correlation between independent Vraiable - Multicolinarity 
-## Use CART
+## Due to High Correlation between independent Vraiable - Multicolinarity - 
+## Use CART and NOt Linear Regression 
 
 
 library(rpart)
@@ -83,20 +86,21 @@ library(rpart.plot)
 library(rattle)
 
 
-m.ctrl = rpart.control(minsplit = 90, minbucket = 10, cp = 0, xval = 10)
+## *********************  PREDICT NEW PRICE  ********************** ##
 
-model1 = rpart(formula = New_Price ~ ., data = train_new, method = 'anova', 
-               control = m.ctrl)
+ctrl_new_price = rpart.control(minsplit = 45, minbucket = 4, cp = 0, xval = 10)
 
-fancyRpartPlot(model1)
+model_new_price = rpart(formula = New_Price ~ ., data = train_new, method = 'anova', 
+               control = ctrl_new_price)
 
-printcp(model1)
 
-model1.prun = prune(model1, cp = 0.000429, 'cp')
-fancyRpartPlot(model1.prun)
+printcp(model_new_price)
+
+prun_new_price = prune(model_new_price, cp = 0.000103, 'cp')
+fancyRpartPlot(prun_new_price)
 
 par(mfrow = c(1,2))
-rsq.rpart(model1.prun)
+rsq.rpart(prun_new_price)   
 
 
 ## Create Dataset Predict_New_Test for New_Price Predict Empty Dataset 
@@ -117,7 +121,10 @@ colSums(is.na(Predict_New_Test))
 
 Predict_New_Test = na.omit(Predict_New_Test)
 
-Predict_New_Test$New_Price = predict(model1.prun, Predict_New_Test, method = 'anova',  interval = 'confident')
+## PREDICT NEW PRICE ##
+
+Predict_New_Test$New_Price = predict(prun_new_price, Predict_New_Test, 
+                                     method = 'anova',  interval = 'confident')
 
 ## Final Dataset 
 
@@ -127,9 +134,133 @@ write.csv(train_final, 'train_final.csv')
 
 
 
+### **************  FINAL MODEL USED CAR - STUDY  ************** ###
+
+train_used = read.csv('train_final.csv')
+
+train_used = train_used[,-c(1)]
+
+dim(train_used)
+str(train_used)
+
+attach(train_used)
+
+# Check Missing Values
+
+colSums(is.na(train_used))
+
+# Check Outliers
+
+boxplot(Kilometers_Driven)
+boxplot(Mileage)
+boxplot(Engine)
+boxplot(Power)
+boxplot(Seats)
+boxplot(New_Price)
+
+## Remove Outlier from Kilometers_Driven
+
+train_used = train_used[-2769, ]
+
+
+## Normilize traun_used : dataset for model building
+
+library(MASS)
+library(forecast)
+
+hist(Kilometers_Driven)     # kilometer_Driven
+
+BoxCox.lambda(Kilometers_Driven)
+Kilometers_Driven = log(Kilometers_Driven)
+Kilometers_Driven = (Kilometers_Driven^2)
+
+hist(Power)     # Power
+
+BoxCox.lambda(Power)
+Power = (1/(sqrt(Power)))
+Power = sqrt(Power)
+
+hist(Engine)     # Engine
+
+BoxCox.lambda(Engine)
+Engine = (1/Engine)
+Engine = log(Engine)
+Engine = (Engine^2)
+Engine = (1/Engine)
+
+attach(train_used)
+
+## WHY IT WAS IMP TO PREDICY NEW_PRICE FIRST - CHK CORRELATION 
+
+cor(New_Price, Price)
+# [1] 0.7228803
+
+
+## BUILD CART MODEL ##
+
+
+library(rpart)
+library(rpart.plot)
+library(rattle)
+
+m.ctrl.used = rpart.control(minsplit = 170, minbucket = 10, cp = 0, xval = 10)
+
+model.used = rpart(formula = Price ~ ., data = train_used, method = 'anova', 
+               control = m.ctrl.used)
+
+#fancyRpartPlot(model.used)
+
+printcp(model.used)
+
+model.used.prun = prune(model.used, cp = 0.000123, 'cp')
+fancyRpartPlot(model.used.prun)
+
+par(mfrow = c(1,2))
+rsq.rpart(model.used.prun)
+
+## Evaluate Result on Same Data
+
+actual = train_used[, 12]
+predict = train_used[, -12]
+
+predict$Price = predict(model.used.prun, predict, 
+                    method = 'anova', interval = 'confidence')
+
+predict = predict[,12]
+
+backtest = data.frame(actual, predict)
+
+
+## Load Test File - To predict the Used Car Price
+
+test = read.csv('Data_Test.csv')
+
+test = test[,-c(1)]
+
+test$Price = predict(model.used.prun, test, method = 'anova', interval = 'confidence')
+
+used_care_1 = test$Price
 
 
 
+~~~~~~~~~~~~~~~~~~~~~~
+  
+library(imputeTS)
 
+test_new_price$New_Price = na.replace(test_new_price$New_Price,0)
 
+test_new_price = test_new_price[which(test_new_price$New_Price == 0),]
+
+colSums(is.na(test_new_price))
+
+# Predict_New_Test = na.omit(Predict_New_Test)
+
+## PREDICT NEW PRICE ##
+
+test_new_price$New_Price = predict(test_new_price, test_new_price, 
+                                     method = 'anova',  interval = 'confident')
+
+## Final Dataset 
+
+train_final = rbind(train_new, Predict_New_Test)
 
