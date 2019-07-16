@@ -16,5 +16,11 @@ TO predict the Used Car Price - We came with two seperate results.
 
 <br>
 
+### Learning
+
+- Train dataset - New_Price variable (Independent) has more than 70% missing values. However, we saw there are high +ve correlation (0.72)(after study we got this value) between Price (Target variable for Study) and New_Price.
+- We decided to First predict the New_Price from train dataset - CART technique. 
+- After Train dataset completed, we again build CART model to predict Price (Target var), and then applied model to predict Test dataset - used car Price var. 
+
 ### Acknowledge 
 Machine Hack - https://www.machinehack.com/ 
