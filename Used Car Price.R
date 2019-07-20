@@ -136,6 +136,7 @@ write.csv(train_final, 'train_final.csv')
 
 ### **************  FINAL MODEL USED CAR - STUDY  ************** ###
 
+
 train_used = read.csv('train_final.csv')
 
 train_used = train_used[,-c(1)]
